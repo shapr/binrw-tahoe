@@ -11,26 +11,34 @@ pub mod lib {
 	pub lease_version: u32,
 	lease_data_length: u32,
 	lease_count: u32,
+
 	share_version: u32,
 	block_size: u32,
 	data_size: u32,
+
 	data_offset: u32,
 	plaintxt_hash_tree_offset: u32,
 	cryptxt_hash_tree_offset: u32,
 	block_hashes_offset: u32,
 	share_hashes_offset: u32,
-	// uri_ext_offset: u32,
-	uri_ext_size: FilePtr<u32, u32>,
+	uri_ext_offset: u32,
+        // "+ 12" because we're inside a "lease" struct w/ 3x u32
+        #[br(seek_before(SeekFrom::Start((uri_ext_offset + 12) as u64)))]
+        uri_ext_size: u32,
+        #[br(count=uri_ext_size)]
+        uri_ext: Vec<u8>,
+
+//	uri_ext_size: FilePtr<u32, u32>,
 	// #[br(value = uri_ext_size)]
 	// uri_ugly_hack: u32,
-	// #[br(parse_with = FilePtr::parse(u32), seek_before(SeekFrom::Start(0)))]
-	// uri_ext_size: u32,
-	#[br(big, count = *uri_ext_size)]
-	uri_block: Vec<u8>,
+//	#[br(parse_with = FilePtr::parse(u32), seek_before(SeekFrom::Start(12 + uri_ext_offset)))]
+//	uri_ext_size: u32,
+//	#[br(count = *uri_ext_size)]
+//	uri_block: Vec<u8>,
 	// uri_block: FilePtr<u32, Vec<u8>>,
 	// data starts now!
-	#[br(big, count = data_size)]
-	share_data: Vec<u8>,
+//	#[br(big, count = data_size)]
+//	share_data: Vec<u8>,
     }
 
     // use nom::*;
