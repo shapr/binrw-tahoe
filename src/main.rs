@@ -13,8 +13,10 @@ fn main() -> result::Result<(), io::Error> {
     let mut pile_of_bytes: Vec<u8> = vec![0; 2500];
     part2.read(&mut pile_of_bytes).unwrap();
     let mut rdr = Cursor::new(pile_of_bytes);
-    let _: Share = dbg!(rdr.read_be().unwrap());
+    let share: Share = dbg!(rdr.read_be().unwrap());
 
+    let ueb = str::from_utf8(share.uri_ext);
+    dbg!(ueb);
     Ok(())
 }
 

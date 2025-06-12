@@ -3,6 +3,7 @@ pub mod lib {
     use binrw::io::*;
     use binrw::FilePtr;
     use binrw::*;
+    use binrw::helpers::*;
     use std::io;
     use std::io::Write;
 
@@ -25,8 +26,15 @@ pub mod lib {
         // "+ 12" because we're inside a "lease" struct w/ 3x u32
         #[br(seek_before(SeekFrom::Start((uri_ext_offset + 12) as u64)))]
         uri_ext_size: u32,
-        #[br(count=uri_ext_size)]
-        uri_ext: Vec<u8>,
+
+        ///v == NoMore))]
+//        #[br(parse_with = until_exclusive(|&UebValue v| true))]
+        data: Vec<UebValue>,
+
+
+//        #[br(count=uri_ext_size)]
+//        pub uri_ext: Vec<u8>,
+
 
 //	uri_ext_size: FilePtr<u32, u32>,
 	// #[br(value = uri_ext_size)]
@@ -73,11 +81,28 @@ pub mod lib {
     We cannot split on commas because the hashes could contain a comma!
     */
 
+    #[derive(PartialEq, Debug)]
     struct UebValue {
 	name: String,
 	byte_count: usize,
 	value: Vec<u8>,
     }
+
+    impl<T> BinRead for UebValue
+    where
+        for <'a> T: BinRead<Args<'a> = ()>,
+//        BinRead<Args> = (),
+    {
+        type Args<'a> = ();
+
+        fn read_options<R: Read + Seek>(reader: &mut R, endian: Endian, args: UebValue::Args) -> BinResult<Self> {
+            return Err(AssertFail(0, "foo"))
+        }
+    }
+
+/// read stuff sequentiallly ... return the sentinel if we're done
+
+
     /*
       What about using the names as "magic numbers" as found in the first few bytes of a file?
     */
