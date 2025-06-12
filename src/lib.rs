@@ -1,5 +1,6 @@
 pub mod lib {
 
+    use binrw::helpers::*;
     use binrw::io::*;
     use binrw::FilePtr;
     use binrw::*;
@@ -21,26 +22,45 @@ pub mod lib {
 	cryptxt_hash_tree_offset: u32,
 	block_hashes_offset: u32,
 	share_hashes_offset: u32,
-	uri_ext_offset: u32,
-        // "+ 12" because we're inside a "lease" struct w/ 3x u32
-        #[br(seek_before(SeekFrom::Start((uri_ext_offset + 12) as u64)))]
-        uri_ext_size: u32,
-        #[br(count=uri_ext_size)]
-        uri_ext: Vec<u8>,
-
-//	uri_ext_size: FilePtr<u32, u32>,
+	pub uri_ext_offset: u32,
+	// "+ 12" because we're inside a "lease" struct w/ 3x u32
+	#[br(seek_before(SeekFrom::Start((uri_ext_offset + 12) as u64)))]
+	pub uri_ext_size: u32,
+	#[br(count=uri_ext_size)]
+	uri_ext: Vec<u8>,
+	//	uri_ext_size: FilePtr<u32, u32>,
 	// #[br(value = uri_ext_size)]
 	// uri_ugly_hack: u32,
-//	#[br(parse_with = FilePtr::parse(u32), seek_before(SeekFrom::Start(12 + uri_ext_offset)))]
-//	uri_ext_size: u32,
-//	#[br(count = *uri_ext_size)]
-//	uri_block: Vec<u8>,
+	//	#[br(parse_with = FilePtr::parse(u32), seek_before(SeekFrom::Start(12 + uri_ext_offset)))]
+	//	uri_ext_size: u32,
+	//	#[br(count = *uri_ext_size)]
+	//	uri_block: Vec<u8>,
 	// uri_block: FilePtr<u32, Vec<u8>>,
 	// data starts now!
-//	#[br(big, count = data_size)]
-//	share_data: Vec<u8>,
+	//	#[br(big, count = data_size)]
+	//	share_data: Vec<u8>,
     }
 
+    #[derive(BinRead)]
+    pub enum UEB {
+	#[br(magic = b"codec_name:")]
+	CodecName(CN),
+    }
+    #[derive(BinRead)]
+    pub struct CN {
+	// can I use the parse helper to compose until_exclusive with something : Vec<u8> -> String ?
+	// maybe?
+	#[br(parse_with = until_exclusive(|&byte| byte == b':'))]
+	count_of_bytes: Vec<u8>, // gotta convert to an ASCII number, and then back to a value
+	#[br(count = bytes_to_int(count_of_bytes))]
+	pile_of_bytes: Vec<u8>,
+    }
+
+    #[binrw::parser(reader: r, endian)]
+    fn custom_parser(v0: u8, v1: i16) -> binrw::BinResult<u32> {
+	// turn Vec<u8> into u32
+	Ok(upcoming_bytes_count)
+    }
     // use nom::*;
     /*
     struct UriExtension {
@@ -73,11 +93,11 @@ pub mod lib {
     We cannot split on commas because the hashes could contain a comma!
     */
 
-    struct UebValue {
-	name: String,
-	byte_count: usize,
-	value: Vec<u8>,
-    }
+    // struct UebValue {
+    //	name: String,
+    //	byte_count: usize,
+    //	value: Vec<u8>,
+    // }
     /*
       What about using the names as "magic numbers" as found in the first few bytes of a file?
     */

@@ -37,5 +37,7 @@ mod tests {
     fn it_works() {
 	let s = read_cap("1of2.0").unwrap();
 	assert_eq!(s.lease_version, 2);
+	assert_eq!(s.uri_ext_offset, 1600);
+	assert_eq!(s.uri_ext_size, 302);
     }
 }
