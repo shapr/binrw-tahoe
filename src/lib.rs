@@ -4,64 +4,84 @@ pub mod lib {
     use binrw::io::*;
     use binrw::FilePtr;
     use binrw::*;
+    use std::fmt::Debug;
     use std::io;
     use std::io::Write;
 
     #[derive(BinRead, PartialEq, Debug)]
     pub struct Share {
-	pub lease_version: u32,
-	lease_data_length: u32,
-	lease_count: u32,
+        pub lease_version: u32,
+        lease_data_length: u32,
+        lease_count: u32,
 
-	share_version: u32,
-	block_size: u32,
-	data_size: u32,
+        share_version: u32,
+        block_size: u32,
+        data_size: u32,
 
-	data_offset: u32,
-	plaintxt_hash_tree_offset: u32,
-	cryptxt_hash_tree_offset: u32,
-	block_hashes_offset: u32,
-	share_hashes_offset: u32,
-	pub uri_ext_offset: u32,
-	// "+ 12" because we're inside a "lease" struct w/ 3x u32
-	#[br(seek_before(SeekFrom::Start((uri_ext_offset + 12) as u64)))]
-	pub uri_ext_size: u32,
-	#[br(count=uri_ext_size)]
-	uri_ext: Vec<u8>,
-	//	uri_ext_size: FilePtr<u32, u32>,
-	// #[br(value = uri_ext_size)]
-	// uri_ugly_hack: u32,
-	//	#[br(parse_with = FilePtr::parse(u32), seek_before(SeekFrom::Start(12 + uri_ext_offset)))]
-	//	uri_ext_size: u32,
-	//	#[br(count = *uri_ext_size)]
-	//	uri_block: Vec<u8>,
-	// uri_block: FilePtr<u32, Vec<u8>>,
-	// data starts now!
-	//	#[br(big, count = data_size)]
-	//	share_data: Vec<u8>,
+        data_offset: u32,
+        plaintxt_hash_tree_offset: u32,
+        cryptxt_hash_tree_offset: u32,
+        block_hashes_offset: u32,
+        share_hashes_offset: u32,
+        pub uri_ext_offset: u32,
+        // "+ 12" because we're inside a "lease" struct w/ 3x u32
+        #[br(seek_before(SeekFrom::Start((uri_ext_offset + 12) as u64)))]
+        pub uri_ext_size: u32,
+        #[br(count=uri_ext_size)]
+        uri_ext: Vec<u8>,
+        //	uri_ext_size: FilePtr<u32, u32>,
+        // #[br(value = uri_ext_size)]
+        // uri_ugly_hack: u32,
+        //	#[br(parse_with = FilePtr::parse(u32), seek_before(SeekFrom::Start(12 + uri_ext_offset)))]
+        //	uri_ext_size: u32,
+        //	#[br(count = *uri_ext_size)]
+        //	uri_block: Vec<u8>,
+        // uri_block: FilePtr<u32, Vec<u8>>,
+        // data starts now!
+        //	#[br(big, count = data_size)]
+        //	share_data: Vec<u8>,
     }
 
     fn bytes_to_int(v: &Vec<u8>) -> u32 {
-	let s = String::try_from(v.clone()).expect("not what you wanted");
-	println!("Here's the s {}", s.clone());
-	let byte_count = s.parse().expect("wasn't an ASCII integer");
-	return byte_count;
+        let s = String::try_from(v.clone()).expect("not what you wanted");
+        println!("Here's the s {}", s.clone());
+        let byte_count = s.parse().expect("wasn't an ASCII integer");
+        return byte_count;
     }
 
     #[derive(BinRead, PartialEq, Debug)]
-    pub enum UEB {
-	#[br(magic = b"codec_name:")]
-	CodecName(CN),
+    pub struct UEB {
+        #[br(parse_with = until_eof)]
+        vals: Vec<UEB_Value>,
+    }
+
+    #[derive(BinRead, PartialEq, Debug)]
+    pub enum UEB_Value {
+        #[br(magic = b"codec_name:")]
+        CodecName(CN),
+        #[br(magic = b"codec_params:")]
+        CodecParams(CP),
+        Debug([u8; 5]),
     }
 
     #[derive(BinRead, PartialEq, Debug)]
     pub struct CN {
-	// can I use the parse helper to compose until_exclusive with something : Vec<u8> -> String ?
-	// maybe?
-	#[br(parse_with = until_exclusive(|&byte| byte == b':'))]
-	count_of_bytes: Vec<u8>, // gotta convert to an ASCII number, and then back to a value
-	#[br(count = bytes_to_int(&count_of_bytes))]
-	pile_of_bytes: Vec<u8>,
+        // can I use the parse helper to compose until_exclusive with something : Vec<u8> -> String ?
+        // maybe?
+        #[br(parse_with = until_exclusive(|&byte| byte == b':'))]
+        count_of_bytes: Vec<u8>, // gotta convert to an ASCII number, and then back to a value
+        #[br(count = bytes_to_int(&count_of_bytes))]
+        pile_of_bytes: Vec<u8>,
+    }
+
+    #[derive(BinRead, PartialEq, Debug)]
+    pub struct CP {
+        // can I use the parse helper to compose until_exclusive with something : Vec<u8> -> String ?
+        // maybe?
+        #[br(parse_with = until_exclusive(|&byte| byte == b':'))]
+        count_of_bytes: Vec<u8>, // gotta convert to an ASCII number, and then back to a value
+        #[br(count = bytes_to_int(&count_of_bytes))]
+        pile_of_bytes: Vec<u8>,
     }
 
     // #[binrw::parser(reader: r, endian)]
@@ -69,29 +89,7 @@ pub mod lib {
     //     // turn Vec<u8> into u32
     //     Ok(upcoming_bytes_count)
     // }
-    // use nom::*;
-    /*
-    struct UriExtension {
-    /// codec_name must be "crs" as of 2025
-    codec_name: String,
-    /// segment size, needed shares, total shares
-    codec_params: (usize, usize, usize),
-    /// segment size, needed shares, total shares
-    tail_codec_params: (usize, usize, usize),
-    /// application size in bytes
-    size: usize,
-    /// segment size in bytes
-    segment_size: usize,
-    segment_count: usize,
-    share_count_required: usize,
-    share_count_total: usize,
-    crypt_text_hash: Vec<u8>,
-    crypt_text_root_hash: Vec<u8>,
-    share_root_hash: Vec<u8>,
-    }
-    */
 
-    // demo input "codec_name:3:crs,codec_params:5:8-1-2,"
     /* guess:
     split on commas for each "value"
     split on colons inside the "value"
@@ -101,27 +99,11 @@ pub mod lib {
     We cannot split on commas because the hashes could contain a comma!
     */
 
-    // struct UebValue {
-    //	name: String,
-    //	byte_count: usize,
-    //	value: Vec<u8>,
-    // }
-    /*
-      What about using the names as "magic numbers" as found in the first few bytes of a file?
-    */
-
-    // #[derive(BinRead)]
-    // enum URI_Extension {
-    //     #[brw(big, magic = b"share_root_hash:")]
-    //     Share_root_hash { Vec<u8> },
-    //     #[br(magic(0u8))] Rect {
-    //	left: i16, top: i16, right: i16, bottom: i16
-    //     },
-    //     #[br(magic(1u8))]
-    //     Oval { origin: Point, rx: u8, ry: u8 }
+    // fn foo<Ret, T, Arg, Reader>(r: &mut Reader, e: Endian, n: Arg) -> BinResult<UEB_Value> {
+    //	return (|| Ok(Debug(b"12345")));
     // }
 
     pub fn print_hello_world() {
-	let _ = io::stdout().write_all(b"Hello, world!\n");
+        let _ = io::stdout().write_all(b"Hello, world!\n");
     }
 }
