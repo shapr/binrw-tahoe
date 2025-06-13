@@ -14,10 +14,17 @@ fn main() -> result::Result<(), io::Error> {
     part2.read(&mut pile_of_bytes).unwrap();
     let mut rdr = Cursor::new(pile_of_bytes);
     let _: Share = dbg!(rdr.read_be().unwrap());
-
+    let ueb_bytes = "codec_name:3:crs,".as_bytes();
+    let the_ueb = read_ueb(ueb_bytes);
+    print!("{:?}", the_ueb);
     Ok(())
 }
 
+fn read_ueb(b: &[u8]) -> result::Result<UEB, io::Error> {
+    let mut rdr = Cursor::new(b);
+    let ueb: UEB = rdr.read_be().unwrap();
+    Ok(ueb)
+}
 fn read_cap(filename: &str) -> result::Result<Share, io::Error> {
     let mut part1 = File::open(filename)?;
     let mut pile_of_bytes: Vec<u8> = vec![0; 2500];
@@ -35,9 +42,9 @@ mod tests {
     use super::*;
     #[test]
     fn it_works() {
-	let s = read_cap("1of2.0").unwrap();
-	assert_eq!(s.lease_version, 2);
-	assert_eq!(s.uri_ext_offset, 1600);
-	assert_eq!(s.uri_ext_size, 302);
+        let s = read_cap("1of2.0").unwrap();
+        assert_eq!(s.lease_version, 2);
+        assert_eq!(s.uri_ext_offset, 1600);
+        assert_eq!(s.uri_ext_size, 302);
     }
 }

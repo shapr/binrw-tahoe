@@ -41,26 +41,34 @@ pub mod lib {
 	//	share_data: Vec<u8>,
     }
 
-    #[derive(BinRead)]
+    fn bytes_to_int(v: &Vec<u8>) -> u32 {
+	let s = String::try_from(v.clone()).expect("not what you wanted");
+	println!("Here's the s {}", s.clone());
+	let byte_count = s.parse().expect("wasn't an ASCII integer");
+	return byte_count;
+    }
+
+    #[derive(BinRead, PartialEq, Debug)]
     pub enum UEB {
 	#[br(magic = b"codec_name:")]
 	CodecName(CN),
     }
-    #[derive(BinRead)]
+
+    #[derive(BinRead, PartialEq, Debug)]
     pub struct CN {
 	// can I use the parse helper to compose until_exclusive with something : Vec<u8> -> String ?
 	// maybe?
 	#[br(parse_with = until_exclusive(|&byte| byte == b':'))]
 	count_of_bytes: Vec<u8>, // gotta convert to an ASCII number, and then back to a value
-	#[br(count = bytes_to_int(count_of_bytes))]
+	#[br(count = bytes_to_int(&count_of_bytes))]
 	pile_of_bytes: Vec<u8>,
     }
 
-    #[binrw::parser(reader: r, endian)]
-    fn custom_parser(v0: u8, v1: i16) -> binrw::BinResult<u32> {
-	// turn Vec<u8> into u32
-	Ok(upcoming_bytes_count)
-    }
+    // #[binrw::parser(reader: r, endian)]
+    // fn custom_parser(v0: u8, v1: i16) -> binrw::BinResult<u32> {
+    //     // turn Vec<u8> into u32
+    //     Ok(upcoming_bytes_count)
+    // }
     // use nom::*;
     /*
     struct UriExtension {
