@@ -7,4 +7,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.98"
 binrw = "0.14.1"
-
+bitcoin_hashes = "0.16.0"
+data-encoding = "2.8.0"
