@@ -75,8 +75,8 @@ cap = "URI:CHK:pyv3qypbpk6knq5ozeibenuubq:jh3twlgmxtytwqtzn6jtbsfy2w574ybkcnalur
 pub fn tagged_pair_hash(tag: &[u8], val0: &[u8], val1: &[u8]) -> Vec<u8> {
     let mut engine = sha256d::Hash::engine();
     engine.input(&netstring(tag));
-    engine.input(val0);
-    engine.input(val1);
+    engine.input(&netstring(val0));
+    engine.input(&netstring(val1));
     sha256d::Hash::from_engine(engine).to_byte_array()[0..32].to_vec()
 }
 
@@ -93,7 +93,14 @@ pub fn tagged_hash(tag: &[u8], val: &[u8], truncate_to: usize) -> Vec<u8> {
 
 // pulled from "lafs"
 pub fn netstring(s: &[u8]) -> Vec<u8> {
-    format!("{}:{},", s.len(), std::str::from_utf8(s).unwrap()).into_bytes()
+    //format!("{}:{},", s.len(), std::str::from_utf8(s).unwrap()).into_bytes()
+
+    // what Python does is output BYTES here, where we have some
+    // number of ASCII-numeral bytes that represent the length, then a
+    // ':' byte, and then 32 arbitrary bytes of key
+    let tag = format!("{}:", s.len());
+    // stuff two byte-sequences together; better way?
+    [tag.as_bytes(), s, b","].concat()
 }
 
 #[derive(Debug, PartialEq, Clone)]
