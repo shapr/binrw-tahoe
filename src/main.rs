@@ -15,6 +15,34 @@ use std::result;
 static URI_TAG: &str = "allmydata_uri_extension_v1";
 static UEB_TAG: &str = "26:allmydata_uri_extension_v1,";
 
+struct CryptTextHashTree <'a> {
+    //pub raw_data: Vec<u8>,
+    pub raw_data: &'a[u8],
+}
+
+
+impl <'a> CryptTextHashTree<'a> {
+    // XXX would be cool if we could return &[u8; 32] since we know it's 32 bytes
+    pub fn node_hash(&self, node_number: usize) -> &'a[u8] {
+        let start = node_number * 32;
+        let end = start + 32;
+        &self.raw_data[start..end]
+    }
+
+    pub fn nodes(&self) -> usize {
+        return self.raw_data.len() / 32
+    }
+
+    pub fn leaf_count(&self) -> usize {
+        let nodes = self.nodes();
+        // next power of 2 below "nodes"
+        // ...but we know that nodes should be "next power of 2 minus 1"
+        assert!((nodes + 1) % 2 == 0);
+        nodes + 1 / 2
+    }
+}
+
+
 fn main() -> result::Result<(), io::Error> {
     let _ = read_cap("1of2.0");
     let mut part2 = File::open("1of2.1")?;
@@ -28,21 +56,23 @@ fn main() -> result::Result<(), io::Error> {
     let taggy = tagged_hash(URI_TAG.as_bytes(), &ueb_bytes, 32);
     print!("{}", b2a(taggy));
 
-    println!("{:?}", s.crypttext_hash_tree);
-    println!("{:?}", s.crypttext_hash_tree.len());
+    // want a ... function? Trait? ... that holds a
+    // crypttext_hash_tree bytes and returns 32-bytes for each node
 
 
     // do we understand merkle trees?
     // strongly suspect that the leaves are the last e.g. 8 entries in ^
     let root: &[u8] = &s.crypttext_hash_tree[0..32];
-    let interior0: &[u8] = &s.crypttext_hash_tree[32..64];
-    let interior1: &[u8] = &s.crypttext_hash_tree[64..96];
-    assert!(root.len() == 32);
-    assert!(interior0.len() == 32);
-    assert!(interior1.len() == 32);
 
-    let hash: Vec<u8> = tagged_pair_hash(b"Merkle tree internal node", interior0, interior1);
-    println!("computed: {:?}", hash);
+    let cth = CryptTextHashTree{
+        raw_data: &s.crypttext_hash_tree,
+    };
+
+    assert!(root.len() == 32);
+    assert!(cth.node_hash(0).len() == 32);
+
+    let hash: Vec<u8> = tagged_pair_hash(b"Merkle tree internal node", cth.node_hash(1), cth.node_hash(2));
+    println!("\ncomputed: {:?}", hash);
     println!("    root: {:?}", root);
     assert!(root == hash.as_slice());
 
