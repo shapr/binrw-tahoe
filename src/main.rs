@@ -27,6 +27,37 @@ fn main() -> result::Result<(), io::Error> {
     print!("{:?}", the_ueb);
     let taggy = tagged_hash(URI_TAG.as_bytes(), &ueb_bytes, 32);
     print!("{}", b2a(taggy));
+
+    println!("{:?}", s.crypttext_hash_tree);
+    println!("{:?}", s.crypttext_hash_tree.len());
+
+
+    // do we understand merkle trees?
+    // strongly suspect that the leaves are the last e.g. 8 entries in ^
+    let root: &[u8] = &s.crypttext_hash_tree[0..32];
+    let interior0: &[u8] = &s.crypttext_hash_tree[32..64];
+    let interior1: &[u8] = &s.crypttext_hash_tree[64..96];
+    assert!(root.len() == 32);
+    assert!(interior0.len() == 32);
+    assert!(interior1.len() == 32);
+
+    let hash: Vec<u8> = tagged_pair_hash(b"Merkle tree internal node", interior0, interior1);
+    println!("computed: {:?}", hash);
+    println!("    root: {:?}", root);
+    assert!(root == hash.as_slice());
+
+//b'Merkle tree internal node', a, b)
+// def tagged_pair_hash(tag, val1, val2, truncate_to=None):
+//     s = _SHA256d_Hasher(truncate_to)
+//     s.update(netstring(tag))
+//     s.update(netstring(val1))
+//     s.update(netstring(val2))
+//     return s.digest()
+    
+
+    // the "root hash" == hash of (1 + 2)
+
+
     Ok(())
 }
 /*
@@ -40,6 +71,14 @@ jh3twlgmxtytwqtzn6jtbsfy2w574ybkcnalurlnlq2snuu3j5da from the capability string:
 cap = "URI:CHK:pyv3qypbpk6knq5ozeibenuubq:jh3twlgmxtytwqtzn6jtbsfy2w574ybkcnalurlnlq2snuu3j5da:1:2:56"
 
 */
+
+pub fn tagged_pair_hash(tag: &[u8], val0: &[u8], val1: &[u8]) -> Vec<u8> {
+    let mut engine = sha256d::Hash::engine();
+    engine.input(&netstring(tag));
+    engine.input(val0);
+    engine.input(val1);
+    sha256d::Hash::from_engine(engine).to_byte_array()[0..32].to_vec()
+}
 
 // pulled from "lafs"
 pub fn tagged_hash(tag: &[u8], val: &[u8], truncate_to: usize) -> Vec<u8> {

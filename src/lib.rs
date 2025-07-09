@@ -20,7 +20,7 @@ pub mod lib {
 
 	data_offset: u32,
 	plaintxt_hash_tree_offset: u32,
-	cryptxt_hash_tree_offset: u32,
+	crypttext_hash_tree_offset: u32,
 	block_hashes_offset: u32,
 	share_hashes_offset: u32,
 	pub uri_ext_offset: u32,
@@ -29,6 +29,14 @@ pub mod lib {
 	pub uri_ext_size: u32,
 	#[br(count=uri_ext_size)]
 	pub uri_ext: Vec<u8>,
+        #[br(seek_before(SeekFrom::Start((crypttext_hash_tree_offset + 12) as u64)), count=(block_hashes_offset - crypttext_hash_tree_offset))]
+
+        // hash_size = 32
+        // crypttext_hash_tree is a bunch of 32-bytes hashes
+        // it is as flattened, full binary tree
+        // e.g. a tree with 8 leaves will have 8 + 4 + 2 + 1 == 15 entries
+
+        pub crypttext_hash_tree: Vec<u8>,
 	//	uri_ext_size: FilePtr<u32, u32>,
 	// #[br(value = uri_ext_size)]
 	// uri_ugly_hack: u32,
