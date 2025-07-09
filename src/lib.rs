@@ -11,18 +11,18 @@ pub mod lib {
     #[derive(BinRead, PartialEq, Debug)]
     pub struct Share {
 	pub lease_version: u32,
-	lease_data_length: u32,
-	lease_count: u32,
+	pub lease_data_length: u32,
+	pub lease_count: u32,
 
-	share_version: u32,
-	block_size: u32,
-	data_size: u32,
+	pub share_version: u32,
+	pub block_size: u32,
+	pub data_size: u32,
 
-	data_offset: u32,
-	plaintxt_hash_tree_offset: u32,
-	crypttext_hash_tree_offset: u32,
-	block_hashes_offset: u32,
-	share_hashes_offset: u32,
+	pub data_offset: u32,
+	pub plaintxt_hash_tree_offset: u32,
+	pub crypttext_hash_tree_offset: u32,
+	pub block_hashes_offset: u32,
+	pub share_hashes_offset: u32,
 	pub uri_ext_offset: u32,
 	// "+ 12" because we're inside a "lease" struct w/ 3x u32
 	#[br(seek_before(SeekFrom::Start((uri_ext_offset + 12) as u64)))]
@@ -52,7 +52,7 @@ pub mod lib {
 
     fn bytes_to_int(v: &Vec<u8>) -> u32 {
 	let s = String::try_from(v.clone()).expect("not what you wanted");
-	println!("Here's the s {}", s.clone());
+	//println!("Here's the s {}", s.clone());
 	let byte_count = s.parse().expect("wasn't an ASCII integer");
 	return byte_count;
     }

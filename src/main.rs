@@ -14,6 +14,9 @@ use std::result;
 
 static URI_TAG: &str = "allmydata_uri_extension_v1";
 static UEB_TAG: &str = "26:allmydata_uri_extension_v1,";
+//static CRYPT_SEG: &str = "allmydata_crypttext_segment_v1";
+//static CRYPT_SEG: &str = "allmydata_plaintext_segment_v1";
+
 
 struct CryptTextHashTree <'a> {
     //pub raw_data: Vec<u8>,
@@ -46,22 +49,23 @@ impl <'a> CryptTextHashTree<'a> {
 fn main() -> result::Result<(), io::Error> {
     let _ = read_cap("1of2.0");
     let mut part2 = File::open("1of2.1")?;
+    //XXX BEWARE this is a lease thing with a share thing inside, see Issue #1
     let mut pile_of_bytes: Vec<u8> = vec![0; 2500];
     part2.read(&mut pile_of_bytes).unwrap();
-    let mut rdr = Cursor::new(pile_of_bytes);
-    let s: Share = dbg!(rdr.read_be().unwrap());
+    let mut rdr = Cursor::new(&pile_of_bytes);
+    let s: Share = rdr.read_be().unwrap();
     let ueb_bytes = s.uri_ext;
     let the_ueb = read_ueb(&ueb_bytes);
-    print!("{:?}", the_ueb);
+    println!("UEB: {:?}", the_ueb);
     let taggy = tagged_hash(URI_TAG.as_bytes(), &ueb_bytes, 32);
-    print!("{}", b2a(taggy));
+    println!("UEB tagged hash?: {}", b2a(taggy));
 
-    // want a ... function? Trait? ... that holds a
-    // crypttext_hash_tree bytes and returns 32-bytes for each node
+    let start: usize = (s.data_offset as usize) + 12;
+    let end: usize = start + s.data_size as usize;
+    let data: &[u8] = &pile_of_bytes[start..end];
 
+    assert!(data.len() == s.data_size as usize);
 
-    // do we understand merkle trees?
-    // strongly suspect that the leaves are the last e.g. 8 entries in ^
     let root: &[u8] = &s.crypttext_hash_tree[0..32];
 
     let cth = CryptTextHashTree{
@@ -70,6 +74,15 @@ fn main() -> result::Result<(), io::Error> {
 
     assert!(root.len() == 32);
     assert!(cth.node_hash(0).len() == 32);
+
+    let first_leaf = &data[0..8];
+    assert!(first_leaf.len() == 8);
+
+    let leaf0 = tagged_hash(b"allmydata_crypttext_segment_v1", first_leaf, 32);
+    // if this hash is correct, it should match what we have in the file
+    // the "first leaf node" is index 7 (index 0 == root)
+    let other = cth.node_hash(7);
+    print!("leaf0: {:?}\nother: {:?}\n", leaf0, other);
 
     let hash: Vec<u8> = tagged_pair_hash(b"Merkle tree internal node", cth.node_hash(1), cth.node_hash(2));
     println!("\ncomputed: {:?}", hash);
@@ -83,8 +96,6 @@ fn main() -> result::Result<(), io::Error> {
 //     s.update(netstring(val1))
 //     s.update(netstring(val2))
 //     return s.digest()
-    
-
     // the "root hash" == hash of (1 + 2)
 
 
