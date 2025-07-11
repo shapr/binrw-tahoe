@@ -10,6 +10,11 @@ use std::fmt::Formatter;
 use std::fs::File;
 use std::io;
 use std::result;
+use rs_merkle::{Hasher,MerkleTree};
+use rs_merkle::algorithms::*;
+
+use binrw_tahoe::lib::*;
+
 // this works for files small enough to fit into v1 ? We hope?
 
 static URI_TAG: &str = "allmydata_uri_extension_v1";
@@ -55,7 +60,7 @@ fn main() -> result::Result<(), io::Error> {
     let mut rdr = Cursor::new(&pile_of_bytes);
     let s: Share = rdr.read_be().unwrap();
     let ueb_bytes = s.uri_ext;
-    let the_ueb = read_ueb(&ueb_bytes);
+    let the_ueb = read_ueb(&ueb_bytes)?;
     println!("UEB: {:?}", the_ueb);
     let taggy = tagged_hash(URI_TAG.as_bytes(), &ueb_bytes, 32);
     println!("UEB tagged hash?: {}", b2a(taggy));
@@ -72,13 +77,44 @@ fn main() -> result::Result<(), io::Error> {
         raw_data: &s.crypttext_hash_tree,
     };
 
+    let mut gold_root: Option<UEB_Value> = None;
+    for x in the_ueb.vals {
+        match x {
+            UEB_chunk::CryptTextRootHash(val) => {
+                gold_root = Some(val);
+                ()
+            },
+            _ => ()
+        }
+    }
+
+    let chunks = data.chunks(8);
+    let leaves: Vec<[u8; 32]> = chunks
+        .map(|x| TahoeLeaf::hash(x))
+        .collect();
+    let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&leaves);
+
+    // okay so this "Tahoe" thing is closer -- we do tagged
+    // hashes. but of course Tahoe is weird, and we tag leaves
+    // differently than "interior" nodes, but "the most advanced
+    // merklet tree library for rust" doesn't support that notion?
+
+    if let Some(root) = merkle_tree.root() {
+        println!("merkle: {:?}", root);
+        if let Some(gr) = gold_root {
+            println!("      : {:?}", gr.pile_of_bytes);
+        }
+    }
+
     assert!(root.len() == 32);
     assert!(cth.node_hash(0).len() == 32);
 
     let first_leaf = &data[0..8];
     assert!(first_leaf.len() == 8);
 
+    // do we know how to hash a leaf?
     let leaf0 = tagged_hash(b"allmydata_crypttext_segment_v1", first_leaf, 32);
+    assert!(leaf0 == leaves[0]);
     // if this hash is correct, it should match what we have in the file
     // the "first leaf node" is index 7 (index 0 == root)
     let other = cth.node_hash(7);
@@ -112,6 +148,41 @@ jh3twlgmxtytwqtzn6jtbsfy2w574ybkcnalurlnlq2snuu3j5da from the capability string:
 cap = "URI:CHK:pyv3qypbpk6knq5ozeibenuubq:jh3twlgmxtytwqtzn6jtbsfy2w574ybkcnalurlnlq2snuu3j5da:1:2:56"
 
 */
+
+#[derive(Clone)]
+pub struct TahoeLeaf {}
+
+#[derive(Clone)]
+pub struct TahoeInside {}
+
+impl Hasher for TahoeLeaf {
+    type Hash = [u8; 32];
+
+    fn hash(data: &[u8]) -> [u8; 32] {  //why not "Hash" as return type?
+        //let mut engine = sha256d::Hash::engine();
+        //engine.input(data);
+        //sha256d::Hash::from_engine(engine).to_byte_array()
+        let hash = tagged_hash(b"allmydata_crypttext_segment_v1", data, 32);
+        let mut ret = [0; 32];
+        ret.copy_from_slice(hash.as_slice());
+        ret
+    }
+}
+
+impl Hasher for TahoeInside {
+    type Hash = [u8; 32];
+    // we don't really want "generics, of u32 or str" etc we can just
+    // add those as "things your Trait needs ot have"? is that the pattern?
+
+    fn hash(data: &[u8]) -> [u8; 32] {  //why not "Hash" as return type?
+        let hash = tagged_hash(b"Merkle tree internal node", data, 32);
+        println!("inside hash {:?}", hash);
+        let mut ret = [0; 32];
+        ret.copy_from_slice(hash.as_slice());
+        ret
+    }
+}
+
 
 pub fn tagged_pair_hash(tag: &[u8], val0: &[u8], val1: &[u8]) -> Vec<u8> {
     let mut engine = sha256d::Hash::engine();

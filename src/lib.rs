@@ -60,7 +60,7 @@ pub mod lib {
     #[derive(BinRead, PartialEq, Debug)]
     pub struct UEB {
 	#[br(parse_with = until_eof)]
-	vals: Vec<UEB_chunk>,
+	pub vals: Vec<UEB_chunk>,
     }
 
     #[derive(BinRead, PartialEq, Debug)]
@@ -95,7 +95,7 @@ pub mod lib {
 	#[br(parse_with = until_exclusive(|&byte| byte == b':'))]
 	count_of_bytes: Vec<u8>, // gotta convert to an ASCII number, and then back to a value
 	#[br(count = bytes_to_int(&count_of_bytes))]
-	pile_of_bytes: Vec<u8>,
+	pub pile_of_bytes: Vec<u8>,
 	trailing_comma: u8,
     }
     // #[binrw::parser(reader: r, endian)]
