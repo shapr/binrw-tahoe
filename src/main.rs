@@ -63,7 +63,7 @@ fn main() -> result::Result<(), io::Error> {
     let the_ueb = read_ueb(&ueb_bytes)?;
     println!("UEB: {:?}", the_ueb);
     let taggy = tagged_hash(URI_TAG.as_bytes(), &ueb_bytes, 32);
-    println!("UEB tagged hash?: {}", b2a(taggy));
+    println!("UEB tagged hash?: {}", b2a(&taggy));
 
     let start: usize = (s.data_offset as usize) + 12;
     let end: usize = start + s.data_size as usize;
@@ -88,11 +88,28 @@ fn main() -> result::Result<(), io::Error> {
         }
     }
 
+    // for 7: dhdhaueartza2amnltbdi7ohyfnp2iqai7zqxub5nxv2qiz3tv6a
+
     let chunks = data.chunks(8);
-    let leaves: Vec<[u8; 32]> = chunks
+    let emptyvec = tagged_hash(b"Merkle tree empty leaf", b"7", 32);
+    let mut empty = [0; 32];
+    println!("EMPT {:?}", b2a(&emptyvec).base32);
+    empty.copy_from_slice(emptyvec.as_slice());
+
+    println!("{:?} {:?}", data.len(), chunks);
+    let mut leaves: Vec<[u8; 32]> = chunks
         .map(|x| TahoeLeaf::hash(x))
         .collect();
+    leaves.push(empty);
+    println!("{:?}", leaves.len());
     let merkle_tree = MerkleTree::<TahoeInside>::from_leaves(&leaves);
+    println!("done, now the root");
+    println!("{:?}", b2a(&merkle_tree.root().expect("foo").to_vec()).base32);
+
+    // XXX why is "inside hash" only printed 6 times?
+    // 8 leaves = 4 layer1
+    // 4 layer1 = 2 layer2
+    // 2 layer2 = 1 root (so we don't see this as "interior hash"?)
 
     // okay so this "Tahoe" thing is closer -- we do tagged
     // hashes. but of course Tahoe is weird, and we tag leaves
@@ -103,6 +120,7 @@ fn main() -> result::Result<(), io::Error> {
         println!("merkle: {:?}", root);
         if let Some(gr) = gold_root {
             println!("      : {:?}", gr.pile_of_bytes);
+            println!("{:?}", b2a(&gr.pile_of_bytes.to_vec()).base32);
         }
     }
 
@@ -121,8 +139,8 @@ fn main() -> result::Result<(), io::Error> {
     print!("leaf0: {:?}\nother: {:?}\n", leaf0, other);
 
     let hash: Vec<u8> = tagged_pair_hash(b"Merkle tree internal node", cth.node_hash(1), cth.node_hash(2));
-    println!("\ncomputed: {:?}", hash);
-    println!("    root: {:?}", root);
+    println!("\ncomputed: {:?}", b2a(&hash).base32);
+    println!("    root: {:?}", b2a(&root.to_vec()).base32);
     assert!(root == hash.as_slice());
 
 //b'Merkle tree internal node', a, b)
@@ -176,7 +194,7 @@ impl Hasher for TahoeInside {
 
     fn hash(data: &[u8]) -> [u8; 32] {  //why not "Hash" as return type?
         let hash = tagged_hash(b"Merkle tree internal node", data, 32);
-        println!("inside hash {:?}", hash);
+        println!("inside hash {:?} {:?}", data.len(), b2a(&hash.to_vec()).base32);
         let mut ret = [0; 32];
         ret.copy_from_slice(hash.as_slice());
         ret
@@ -221,10 +239,10 @@ pub struct Base32 {
     bytes: Vec<u8>,
 }
 
-pub fn b2a(bytes: Vec<u8>) -> Base32 {
+pub fn b2a(bytes: &Vec<u8>) -> Base32 {
     Base32 {
-	base32: BASE32_NOPAD.encode(&bytes).to_lowercase(),
-	bytes,
+	base32: BASE32_NOPAD.encode(bytes).to_lowercase(),
+	bytes: bytes.to_vec(),
     }
 }
 
